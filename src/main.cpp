@@ -1,12 +1,17 @@
 #include <Arduino.h>
 #include <HardwareSerial.h>
 #include <MAVLink.h>
+#include <ESP32Servo.h>
+#include <EEPROM.h>
+
+#include <servoWrapper.h>
+#include <filters.h>
+#include <config.h>
+#include <memoryData.h>
+#include <bluetoothWrapper.h> 
+#include <helpers.h>
 
 /*
-  - ignorujemy YAW
-  - Musimy znać pozycje Servo kiedy spogląda w dół
-  - Maksymalny wychył nie-ignorowany
-  - musimy znać współczynnik ruchy między Servo, a stopniami z Żyroskopu
   - LOOP na 20ms (50Hz): Betaflight domyślnie wysyła co 100ms (10Hz)
 
   Techniczne:
@@ -16,47 +21,75 @@
   - Rozdzielenie Zasilania i Masy - szybkozłącza 2 x x4
 */
 
+#define EEPROM_SIZE 768
+
+// Task Handles
+TaskHandle_t BleTaskHandle;
+
+Servo servoPitch;
+Servo servoRoll;
+
+ServoWrapper servoRollWrapper(SERVO_ROLL_GPIO, servoRoll, &servoRollNeutralPositionMemory);
+ServoWrapper servoPitchWrapper(SERVO_PITCH_GPIO, servoPitch, &servoPitchNeutralPositionMemory);
+
+BluetoothWrapper bluetoothWrapper(&servoRollWrapper, &servoPitchWrapper);
+
 HardwareSerial FC_Serial(1);
+
+mavlink_message_t msg;
+mavlink_status_t status;
+
+void bleTask(void *param) {
+  while (true) {
+    if (isBLEClientConnected) {
+        bluetoothWrapper.checkQueue();
+
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+        continue;
+    }
+  }
+  vTaskDelay(2000 / portTICK_PERIOD_MS);
+}
 
 void setup() {
   Serial.begin(115200);
 
-  FC_Serial.begin(115200, SERIAL_8N1, 16, 17);
-}
+  if (!EEPROM.begin(EEPROM_SIZE)) {
+      Serial.println("EEPROM Error");
+      return;
+  }
 
-float radiansToDegrees(float rad) {
-    return rad * (180.0 / PI);
+  FC_Serial.begin(115200, SERIAL_8N1, 16, 17);
+
+  servoPitchWrapper.initialize(SERVO_PITCH_PWM_TIMER_INDEX);
+  servoRollWrapper.initialize(SERVO_ROLL_PWM_TIMER_INDEX);
+
+  bluetoothWrapper.initialize();
+
+  // xTaskCreate(bleTask, "BLETask", 2048, NULL, 1, &BleTaskHandle);
 }
 
 void loop() {
-  mavlink_message_t msg;
-  mavlink_status_t status;
-
-  static uint32_t lastAttitudeTime = 0;
-  static uint32_t currentTime = 0;
-  static uint32_t timeDiff = 0;
-
   while (FC_Serial.available()) {
       uint8_t c = FC_Serial.read();
 
-      // Parsuj wiadomości MAVLink
       if (mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
           if (msg.msgid == MAVLINK_MSG_ID_ATTITUDE) {
-            currentTime = millis();
-            timeDiff = currentTime - lastAttitudeTime;
-            lastAttitudeTime = currentTime;
-
-            Serial.print("Time diff: ");
-            Serial.println(timeDiff);
-
               mavlink_attitude_t attitude;
               mavlink_msg_attitude_decode(&msg, &attitude);
-              Serial.print("Roll: ");
-              Serial.print(radiansToDegrees(attitude.roll));
-              Serial.print(" Pitch: ");
-              Serial.print(radiansToDegrees(attitude.pitch));
-              Serial.print(" Yaw: ");
-              Serial.println(radiansToDegrees(attitude.yaw));
+
+              auto roll = radiansToDegrees(attitude.roll);
+              auto pitch = radiansToDegrees(attitude.pitch);
+
+              float filteredRoll = addValueToBuffer(roll, rollBuffer);
+              float filteredPitch = addValueToBuffer(pitch, pitchBuffer);
+
+              // Serial.println("Roll: " + String(filteredRoll));
+              // Serial.println("Pitch: " + String(filteredPitch));
+              // Serial.println("--------------------------------");
+
+              servoRollWrapper.setDegrees(filteredRoll);
+              servoPitchWrapper.setDegrees(filteredPitch);
           }
       }
   }
