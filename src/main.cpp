@@ -54,17 +54,22 @@ void bleTask(void *param) {
 void setup() {
   Serial.begin(115200);
 
+  delay(500);
+  Serial.println("Starting...");
+
   if (!EEPROM.begin(EEPROM_SIZE)) {
       Serial.println("EEPROM Error");
       return;
   }
 
-  FC_Serial.begin(115200, SERIAL_8N1, 16, 17);
+  FC_Serial.begin(115200, SERIAL_8N1, FC_RX_GPIO, FC_TX_GPIO);
 
   servoPitchWrapper.initialize(SERVO_PITCH_PWM_TIMER_INDEX);
   servoRollWrapper.initialize(SERVO_ROLL_PWM_TIMER_INDEX);
 
   bluetoothWrapper.initialize();
+
+  Serial.println("Initialized");
 
   // xTaskCreate(bleTask, "BLETask", 2048, NULL, 1, &BleTaskHandle);
 }
@@ -81,6 +86,9 @@ void loop() {
               auto roll = radiansToDegrees(attitude.roll);
               auto pitch = radiansToDegrees(attitude.pitch);
 
+              Serial.println("Roll: " + String(roll));
+              Serial.println("Pitch: " + String(pitch));
+ 
               float filteredRoll = addValueToBuffer(roll, rollBuffer);
               float filteredPitch = addValueToBuffer(pitch, pitchBuffer);
 
