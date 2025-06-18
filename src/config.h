@@ -18,4 +18,6 @@ extern const char* BLE_NAME;
 extern const char* BLE_SERVICE_UUID;
 extern const char* BLE_CHARACTERISTIC_UUID;
 
+extern bool hasFCSerialReceivedAnyData;
+
 #endif

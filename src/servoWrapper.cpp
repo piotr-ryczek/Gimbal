@@ -1,9 +1,11 @@
 #include <Arduino.h>
 #include <stdexcept>
 #include <ESP32Servo.h>
-#include <servoWrapper.h>
 
-ServoWrapper::ServoWrapper(byte servoGpio, Servo& servo, MemoryValue* neutralPositionMemory): servo(servo), neutralPositionMemory(neutralPositionMemory) {
+#include <servoWrapper.h>
+#include <config.h>
+
+ServoWrapper::ServoWrapper(byte servoGpio, Servo& servo, MemoryValue* neutralPositionMemory, MemoryValue* isReversedMemory): servo(servo), neutralPositionMemory(neutralPositionMemory), isReversedMemory(isReversedMemory) {
     this->servoGpio = servoGpio;
 };
 
@@ -38,7 +40,15 @@ uint8_t ServoWrapper::readFromServo() {
 }
 
 void ServoWrapper::setDegrees(float newPositionDegrees) {
-    uint8_t newPosition = static_cast<uint8_t>(this->neutralPosition - round(newPositionDegrees));
+    bool isReversed = static_cast<bool>(this->isReversedMemory->readValue());
+
+    int delta = static_cast<int>(round(newPositionDegrees));
+
+    if (isReversed) {
+        delta = -delta;
+    }
+
+    uint8_t newPosition = static_cast<uint8_t>(this->neutralPosition - delta);
 
     if (newPosition < this->min) {
         newPosition = this->min;
@@ -49,11 +59,23 @@ void ServoWrapper::setDegrees(float newPositionDegrees) {
     this->write(newPosition);
 }
 
+uint8_t ServoWrapper::getNeutralPosition() {
+    return this->neutralPosition;
+}
+
 void ServoWrapper::setNeutralPosition(uint8_t newNeutralPosition) {
     this->neutralPositionMemory->setValue(newNeutralPosition);
     this->neutralPosition = newNeutralPosition;
 
     this->setMinAndMax(newNeutralPosition);
+
+    if (!hasFCSerialReceivedAnyData) {
+        this->setDegrees(newNeutralPosition);
+    }
+}
+
+void ServoWrapper::setIsReversed(uint8_t newIsReversed) {
+    this->isReversedMemory->setValue(newIsReversed);
 }
 
 void ServoWrapper::setMinAndMax(uint8_t neutralPosition) {

@@ -19,11 +19,15 @@ unordered_map<string, MemoryValue*> settingsMemory;
 vector<string> commandTypes = {
   "SET_PITCH_NEUTRAL_POSITION",
   "SET_ROLL_NEUTRAL_POSITION",
+  "SET_PITCH_IS_REVERSED",
+  "SET_ROLL_IS_REVERSED",
+  "GET_PITCH_NEUTRAL_POSITION",
+  "GET_ROLL_NEUTRAL_POSITION",
 };
 
 BluetoothWrapper::BluetoothWrapper(ServoWrapper* servoRoll, ServoWrapper* servoPitch): servoRoll(servoRoll), servoPitch(servoPitch) {}
 
-class WindowOpeningBLEServerCallbacks : public BLEServerCallbacks {
+class GimbalBLEServerCallbacks : public BLEServerCallbacks {
   public:
     void onConnect(BLEServer* pServer) override {
         isBLEClientConnected = true;
@@ -37,14 +41,12 @@ class WindowOpeningBLEServerCallbacks : public BLEServerCallbacks {
     }
 };
 
-class WindowOpeningBLECharacteristicCallbacks : public BLECharacteristicCallbacks {
+class GimbalBLECharacteristicCallbacks : public BLECharacteristicCallbacks {
   private:
     BluetoothWrapper* bluetoothWrapper;
 
   public:
-    WindowOpeningBLECharacteristicCallbacks(BluetoothWrapper* wrapper) : bluetoothWrapper(wrapper) {}
-
-    WindowOpeningBLECharacteristicCallbacks() {}
+    GimbalBLECharacteristicCallbacks(BluetoothWrapper* wrapper) : bluetoothWrapper(wrapper) {}
 
     void onWrite(BLECharacteristic* pCharacteristic) override {
       if (!bluetoothWrapper) {
@@ -76,8 +78,8 @@ void BluetoothWrapper::initialize() {
 
   this->pCharacteristic->addDescriptor(new BLE2902());
 
-  pServer->setCallbacks(new WindowOpeningBLEServerCallbacks());
-  this->pCharacteristic->setCallbacks(new WindowOpeningBLECharacteristicCallbacks(this));
+  pServer->setCallbacks(new GimbalBLEServerCallbacks());
+  this->pCharacteristic->setCallbacks(new GimbalBLECharacteristicCallbacks(this));
   pService->start();
 
   BLEAdvertising *pAdvertising = pServer->getAdvertising();
@@ -85,6 +87,8 @@ void BluetoothWrapper::initialize() {
 
   settingsMemory["SERVO_PITCH_NEUTRAL_POSITION"] = &servoPitchNeutralPositionMemory;
   settingsMemory["SERVO_ROLL_NEUTRAL_POSITION"] = &servoRollNeutralPositionMemory;
+  settingsMemory["SERVO_PITCH_IS_REVERSED"] = &servoPitchIsReversedMemory;
+  settingsMemory["SERVO_ROLL_IS_REVERSED"] = &servoRollIsReversedMemory;
 
   Serial.println("Bluetooth initialized. Ready for pairing");
 }
@@ -113,24 +117,49 @@ tuple<vector<String>, String> BluetoothWrapper::handleCommand(String* message) {
   if (parts.empty()) {
     Serial.println("Not processing bluetooth command: zero parts");
     response.push_back("Invalid Command: Zero Parts");
-}
+  }
+  
 
-  if (parts.size() != 2) {
+  string commandType = trim(parts.at(0));
+
+  if (
+    (commandType == "GET_PITCH_NEUTRAL_POSITION" || commandType == "GET_ROLL_NEUTRAL_POSITION") 
+    && parts.size() != 1
+  ) {
+    Serial.println("Not processing bluetooth command: only one part accepted");
+    response.push_back("Invalid Command: Only one part accepted");
+  }
+
+  if (
+    (commandType == "SET_PITCH_NEUTRAL_POSITION" || commandType == "SET_ROLL_NEUTRAL_POSITION" || commandType == "SET_PITCH_IS_REVERSED" || commandType == "SET_ROLL_IS_REVERSED") 
+    && parts.size() != 2
+  ) {
     Serial.println("Not processing bluetooth command: only two parts accepted");
     response.push_back("Invalid Command: Only two parts accepted");
   }
 
-  string commandType = trim(parts.at(0));
   uint8_t newServosPosition;
-
+  uint8_t newIsReversed;
   if (commandType == "SET_PITCH_NEUTRAL_POSITION" || commandType == "SET_ROLL_NEUTRAL_POSITION") {
     newServosPosition = convertStringToUint8t(trim(parts.at(1)));
+  }
+
+  if (commandType == "SET_PITCH_IS_REVERSED" || commandType == "SET_ROLL_IS_REVERSED") {
+    newIsReversed = convertStringToUint8t(trim(parts.at(1)));
   }
 
   if (commandType == "SET_PITCH_NEUTRAL_POSITION") {
     response.push_back(handleSetPitchNeutralCommand(newServosPosition));
   } else if (commandType == "SET_ROLL_NEUTRAL_POSITION") {
     response.push_back(handleSetRollNeutralCommand(newServosPosition));
+  } else if (commandType == "SET_PITCH_IS_REVERSED") {
+    response.push_back(handleSetPitchIsReversedCommand(newIsReversed));
+  } else if (commandType == "SET_ROLL_IS_REVERSED") {
+    response.push_back(handleSetRollIsReversedCommand(newIsReversed));
+  } else if (commandType == "GET_PITCH_NEUTRAL_POSITION") {
+    response.push_back(handleGetPitchNeutralPositionCommand());
+  } else if (commandType == "GET_ROLL_NEUTRAL_POSITION") {
+    response.push_back(handleGetRollNeutralPositionCommand());
   } else {
     response.push_back(handleInvalidCommand());
   }
@@ -196,4 +225,24 @@ String BluetoothWrapper::handleSetRollNeutralCommand(uint8_t value) {
 String BluetoothWrapper::handleInvalidCommand() {
   Serial.println("Invalid command");
   return "Invalid command";
+}
+
+String BluetoothWrapper::handleSetPitchIsReversedCommand(uint8_t value) {
+  servoPitch->setIsReversed(value);
+
+  return "Set Pitch Is Reversed correctly";
+}
+
+String BluetoothWrapper::handleSetRollIsReversedCommand(uint8_t value) {
+  servoRoll->setIsReversed(value);
+
+  return "Set Roll Is Reversed correctly";
+}
+
+String BluetoothWrapper::handleGetPitchNeutralPositionCommand() {
+  return String(servoPitch->getNeutralPosition());
+}
+
+String BluetoothWrapper::handleGetRollNeutralPositionCommand() {
+  return String(servoRoll->getNeutralPosition());
 }
