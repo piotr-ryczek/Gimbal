@@ -15,3 +15,6 @@ MemoryValue servoPitchIsReversedMemory(SERVO_PITCH_IS_REVERSED_SET_ADDRESS, SERV
 
 // Roll Is Reversed
 MemoryValue servoRollIsReversedMemory(SERVO_ROLL_IS_REVERSED_SET_ADDRESS, SERVO_ROLL_IS_REVERSED_VALUE_ADDRESS, 0);
+
+// Roll Is Reversed
+MemoryValue servosMaxExtremeDiffMemory(SERVOS_MAX_EXTREME_DIFF_SET_ADDRESS, SERVOS_MAX_EXTREME_DIFF_VALUE_ADDRESS, 30);

@@ -5,8 +5,6 @@
 #include <ESP32Servo.h>
 #include <memoryData.h>
 
-const int maxExtremeDiff = 50;
-
 class ServoWrapper {
     private:
         byte servoGpio;
@@ -16,10 +14,11 @@ class ServoWrapper {
         uint8_t max;
         MemoryValue* neutralPositionMemory;
         MemoryValue* isReversedMemory;
+        MemoryValue* maxExtremeDiffMemory;
         uint8_t readFromServo();
 
     public:
-        ServoWrapper(byte servoGpio, Servo& servo, MemoryValue* neutralPositionMemory, MemoryValue* isReversedMemory);
+        ServoWrapper(byte servoGpio, Servo& servo, MemoryValue* neutralPositionMemory, MemoryValue* isReversedMemory, MemoryValue* maxExtremeDiffMemory);
         void initialize(int timerNumber);
         void write(uint8_t newPositionDegrees); // Degrees 0 - 180
         void setDegrees(float newPositionDegrees);
@@ -27,6 +26,7 @@ class ServoWrapper {
         void setNeutralPosition(uint8_t newNeutralPosition);
         void setIsReversed(uint8_t newIsReversed); // 0 = Normal, 1 = Reversed
         void setMinAndMax(uint8_t neutralPosition);
+        void recalculateMixAndMax();
 
 };
 

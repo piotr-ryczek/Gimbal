@@ -18,6 +18,10 @@ const int SERVO_PITCH_IS_REVERSED_VALUE_ADDRESS = 20;
 const int SERVO_ROLL_IS_REVERSED_SET_ADDRESS = 24;
 const int SERVO_ROLL_IS_REVERSED_VALUE_ADDRESS = 28;
 
+
+const int SERVOS_MAX_EXTREME_DIFF_SET_ADDRESS = 32;
+const int SERVOS_MAX_EXTREME_DIFF_VALUE_ADDRESS = 36;
+
 // MemoryValues
 
 // Pitch Neutral
@@ -31,5 +35,8 @@ extern MemoryValue servoPitchIsReversedMemory;
 
 // Roll Is Reversed
 extern MemoryValue servoRollIsReversedMemory;
+
+// Max Extreme Diff
+extern MemoryValue servosMaxExtremeDiffMemory;
 
 #endif

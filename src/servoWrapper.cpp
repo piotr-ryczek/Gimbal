@@ -5,7 +5,7 @@
 #include <servoWrapper.h>
 #include <config.h>
 
-ServoWrapper::ServoWrapper(byte servoGpio, Servo& servo, MemoryValue* neutralPositionMemory, MemoryValue* isReversedMemory): servo(servo), neutralPositionMemory(neutralPositionMemory), isReversedMemory(isReversedMemory) {
+ServoWrapper::ServoWrapper(byte servoGpio, Servo& servo, MemoryValue* neutralPositionMemory, MemoryValue* isReversedMemory, MemoryValue* maxExtremeDiffMemory): servo(servo), neutralPositionMemory(neutralPositionMemory), isReversedMemory(isReversedMemory), maxExtremeDiffMemory(maxExtremeDiffMemory) {
     this->servoGpio = servoGpio;
 };
 
@@ -79,6 +79,15 @@ void ServoWrapper::setIsReversed(uint8_t newIsReversed) {
 }
 
 void ServoWrapper::setMinAndMax(uint8_t neutralPosition) {
+    uint8_t maxExtremeDiff = maxExtremeDiffMemory->readValue();
+
     this->min = neutralPosition - maxExtremeDiff;
     this->max = neutralPosition + maxExtremeDiff;
+}
+
+void ServoWrapper::recalculateMixAndMax() {
+    uint8_t maxExtremeDiff = maxExtremeDiffMemory->readValue();
+
+    this->min = this->neutralPosition - maxExtremeDiff;
+    this->max = this->neutralPosition + maxExtremeDiff;
 }

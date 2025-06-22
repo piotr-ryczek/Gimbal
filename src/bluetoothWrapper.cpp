@@ -23,6 +23,8 @@ vector<string> commandTypes = {
   "SET_ROLL_IS_REVERSED",
   "GET_PITCH_NEUTRAL_POSITION",
   "GET_ROLL_NEUTRAL_POSITION",
+  "GET_MAX_EXTREME_DIFF",
+  "SET_MAX_EXTREME_DIFF"
 };
 
 BluetoothWrapper::BluetoothWrapper(ServoWrapper* servoRoll, ServoWrapper* servoPitch): servoRoll(servoRoll), servoPitch(servoPitch) {}
@@ -89,6 +91,7 @@ void BluetoothWrapper::initialize() {
   settingsMemory["SERVO_ROLL_NEUTRAL_POSITION"] = &servoRollNeutralPositionMemory;
   settingsMemory["SERVO_PITCH_IS_REVERSED"] = &servoPitchIsReversedMemory;
   settingsMemory["SERVO_ROLL_IS_REVERSED"] = &servoRollIsReversedMemory;
+  settingsMemory["SERVOS_MAX_EXTREME_DIFF"] = &servosMaxExtremeDiffMemory;
 
   Serial.println("Bluetooth initialized. Ready for pairing");
 }
@@ -123,7 +126,7 @@ tuple<vector<String>, String> BluetoothWrapper::handleCommand(String* message) {
   string commandType = trim(parts.at(0));
 
   if (
-    (commandType == "GET_PITCH_NEUTRAL_POSITION" || commandType == "GET_ROLL_NEUTRAL_POSITION") 
+    (commandType == "GET_PITCH_NEUTRAL_POSITION" || commandType == "GET_ROLL_NEUTRAL_POSITION" || commandType == "GET_MAX_EXTREME_DIFF") 
     && parts.size() != 1
   ) {
     Serial.println("Not processing bluetooth command: only one part accepted");
@@ -131,7 +134,7 @@ tuple<vector<String>, String> BluetoothWrapper::handleCommand(String* message) {
   }
 
   if (
-    (commandType == "SET_PITCH_NEUTRAL_POSITION" || commandType == "SET_ROLL_NEUTRAL_POSITION" || commandType == "SET_PITCH_IS_REVERSED" || commandType == "SET_ROLL_IS_REVERSED") 
+    (commandType == "SET_PITCH_NEUTRAL_POSITION" || commandType == "SET_ROLL_NEUTRAL_POSITION" || commandType == "SET_PITCH_IS_REVERSED" || commandType == "SET_ROLL_IS_REVERSED" || commandType == "SET_MAX_EXTREME_DIFF") 
     && parts.size() != 2
   ) {
     Serial.println("Not processing bluetooth command: only two parts accepted");
@@ -140,12 +143,18 @@ tuple<vector<String>, String> BluetoothWrapper::handleCommand(String* message) {
 
   uint8_t newServosPosition;
   uint8_t newIsReversed;
+  uint8_t newMaxExtremeDiff;
+
   if (commandType == "SET_PITCH_NEUTRAL_POSITION" || commandType == "SET_ROLL_NEUTRAL_POSITION") {
     newServosPosition = convertStringToUint8t(trim(parts.at(1)));
   }
 
   if (commandType == "SET_PITCH_IS_REVERSED" || commandType == "SET_ROLL_IS_REVERSED") {
     newIsReversed = convertStringToUint8t(trim(parts.at(1)));
+  }
+
+  if (commandType == "SET_MAX_EXTREME_DIFF") {
+    newMaxExtremeDiff = convertStringToUint8t(trim(parts.at(1)));
   }
 
   if (commandType == "SET_PITCH_NEUTRAL_POSITION") {
@@ -156,10 +165,14 @@ tuple<vector<String>, String> BluetoothWrapper::handleCommand(String* message) {
     response.push_back(handleSetPitchIsReversedCommand(newIsReversed));
   } else if (commandType == "SET_ROLL_IS_REVERSED") {
     response.push_back(handleSetRollIsReversedCommand(newIsReversed));
+  }  else if (commandType == "SET_MAX_EXTREME_DIFF") {
+    response.push_back(handleSetMaxExtremeDiffCommand(newMaxExtremeDiff));
   } else if (commandType == "GET_PITCH_NEUTRAL_POSITION") {
     response.push_back(handleGetPitchNeutralPositionCommand());
   } else if (commandType == "GET_ROLL_NEUTRAL_POSITION") {
     response.push_back(handleGetRollNeutralPositionCommand());
+  } else if (commandType == "GET_MAX_EXTREME_DIFF") {
+    response.push_back(handleGetMaxExtremeDiffCommand());
   } else {
     response.push_back(handleInvalidCommand());
   }
@@ -222,11 +235,6 @@ String BluetoothWrapper::handleSetRollNeutralCommand(uint8_t value) {
   return "Set Roll Neutral Position correctly";
 }
 
-String BluetoothWrapper::handleInvalidCommand() {
-  Serial.println("Invalid command");
-  return "Invalid command";
-}
-
 String BluetoothWrapper::handleSetPitchIsReversedCommand(uint8_t value) {
   servoPitch->setIsReversed(value);
 
@@ -239,10 +247,27 @@ String BluetoothWrapper::handleSetRollIsReversedCommand(uint8_t value) {
   return "Set Roll Is Reversed correctly";
 }
 
+String BluetoothWrapper::handleSetMaxExtremeDiffCommand(uint8_t value) {
+  servosMaxExtremeDiffMemory.setValue(value);
+  servoPitch->recalculateMixAndMax();
+  servoRoll->recalculateMixAndMax();
+
+  return "Set Max Extreme Diff correctly";
+}
+
 String BluetoothWrapper::handleGetPitchNeutralPositionCommand() {
   return String(servoPitch->getNeutralPosition());
 }
 
 String BluetoothWrapper::handleGetRollNeutralPositionCommand() {
   return String(servoRoll->getNeutralPosition());
+}
+
+String BluetoothWrapper::handleGetMaxExtremeDiffCommand()  {
+  return String(servoPitch->getNeutralPosition());
+}
+
+String BluetoothWrapper::handleInvalidCommand() {
+  Serial.println("Invalid command");
+  return "Invalid command";
 }

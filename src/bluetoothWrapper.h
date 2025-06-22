@@ -24,8 +24,12 @@ class BluetoothWrapper {
     String handleSetPitchIsReversedCommand(uint8_t value); // 0 = Normal, 1 = Reversed
     String handleSetRollIsReversedCommand(uint8_t value); // 0 = Normal, 1 = Reversed
 
+    String handleSetMaxExtremeDiffCommand(uint8_t value);
+
     String handleGetPitchNeutralPositionCommand();
     String handleGetRollNeutralPositionCommand();
+
+    String handleGetMaxExtremeDiffCommand();
 
     String handleInvalidCommand();
 
