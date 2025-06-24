@@ -264,7 +264,7 @@ String BluetoothWrapper::handleGetRollNeutralPositionCommand() {
 }
 
 String BluetoothWrapper::handleGetMaxExtremeDiffCommand()  {
-  return String(servoPitch->getNeutralPosition());
+  return String(servosMaxExtremeDiffMemory.readValue());
 }
 
 String BluetoothWrapper::handleInvalidCommand() {

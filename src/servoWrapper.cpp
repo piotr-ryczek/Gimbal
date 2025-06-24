@@ -56,6 +56,8 @@ void ServoWrapper::setDegrees(float newPositionDegrees) {
         newPosition = this->max;
     }
 
+    Serial.println("New Position: " + String(newPosition));
+
     this->write(newPosition);
 }
 

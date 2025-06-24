@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <HardwareSerial.h>
-// #include <MAVLink.h>
 #include <CRSFParser.h>
 #include <ESP32Servo.h>
 #include <EEPROM.h>
@@ -20,8 +19,8 @@ TaskHandle_t BleTaskHandle;
 Servo servoPitch;
 Servo servoRoll;
 
-ServoWrapper servoRollWrapper(SERVO_ROLL_GPIO, servoRoll, &servoRollNeutralPositionMemory, &servoRollIsReversedMemory);
-ServoWrapper servoPitchWrapper(SERVO_PITCH_GPIO, servoPitch, &servoPitchNeutralPositionMemory, &servoPitchIsReversedMemory);
+ServoWrapper servoRollWrapper(SERVO_ROLL_GPIO, servoRoll, &servoRollNeutralPositionMemory, &servoRollIsReversedMemory, &servosMaxExtremeDiffMemory);
+ServoWrapper servoPitchWrapper(SERVO_PITCH_GPIO, servoPitch, &servoPitchNeutralPositionMemory, &servoPitchIsReversedMemory, &servosMaxExtremeDiffMemory);
 
 BluetoothWrapper bluetoothWrapper(&servoRollWrapper, &servoPitchWrapper);
 
@@ -41,6 +40,9 @@ void bleTask(void *param) {
     vTaskDelay(2000 / portTICK_PERIOD_MS);
   }
 }
+
+Servo servoTest1;
+Servo servoTest2;
 
 void setup() {
   Serial.begin(115200);
@@ -66,6 +68,7 @@ void setup() {
   xTaskCreate(bleTask, "BLETask", 4096, NULL, 1, &BleTaskHandle);
 }
 
+int value = 0;
 void loop() {
   while (FC_Serial.available()) {
     uint8_t byte = FC_Serial.read();
@@ -77,6 +80,9 @@ void loop() {
 
       float filteredRoll = addValueToBuffer(roll, rollBuffer);
       float filteredPitch = addValueToBuffer(pitch, pitchBuffer);
+
+      // Serial.println("Pitch: " + String(pitch));
+      // Serial.println("Roll: " + String(roll));
 
       servoRollWrapper.setDegrees(filteredRoll);
       servoPitchWrapper.setDegrees(filteredPitch);
